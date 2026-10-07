@@ -1,6 +1,7 @@
 package ai.alert.app
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -109,6 +110,7 @@ private fun AlertApp(
 
 @Composable
 private fun AuthScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
+    val activity = LocalContext.current as? Activity
     var register by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -129,6 +131,43 @@ private fun AuthScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
             color = Color(0xFF9EA3AA)
         )
         Spacer(Modifier.height(28.dp))
+
+        if (!resetMode) {
+            OutlinedButton(
+                enabled = !busy && activity != null,
+                onClick = {
+                    val host = activity ?: return@OutlinedButton
+                    busy = true
+                    message = ""
+                    auth.signInWithGoogle(
+                        activity = host,
+                        onSuccess = {
+                            busy = false
+                            onSignedIn()
+                        },
+                        onError = {
+                            busy = false
+                            message = it
+                        }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text("G  CONTINUE WITH GOOGLE", fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(18.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(Modifier.weight(1f), color = Color(0xFF30343A))
+                Text("  OR  ", color = Color(0xFF777C84), fontSize = 12.sp)
+                HorizontalDivider(Modifier.weight(1f), color = Color(0xFF30343A))
+            }
+            Spacer(Modifier.height(14.dp))
+        }
 
         if (register && !resetMode) Field("Name", name) { name = it }
         Field("Email", email) { email = it }
