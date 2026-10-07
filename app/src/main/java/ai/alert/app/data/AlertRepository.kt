@@ -35,14 +35,8 @@ class AlertRepository(private val context: Context) {
     }
 
     private fun ensureUser() {
-        if (Firebase.auth.currentUser != null) {
-            registerMessagingToken(Firebase.auth.currentUser!!.uid)
-            return
-        }
-        // Signed-in account is required by the new app flow. Kept only as a safe migration
-        // fallback for an old installation; new users always authenticate in the UI.
-        Firebase.auth.signInAnonymously()
-            .addOnSuccessListener { result -> registerMessagingToken(result.user?.uid) }
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        registerMessagingToken(uid)
     }
 
     private fun ensureUserAndRun(run: (String) -> Unit, onError: ((String) -> Unit)?) {
