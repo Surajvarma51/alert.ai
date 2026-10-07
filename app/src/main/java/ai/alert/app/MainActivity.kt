@@ -103,6 +103,7 @@ private fun AlertApp(
             authRepository,
             onBack = { screen = Screen.ACCOUNT }
         )
+        null -> Unit
     }
 }
 
