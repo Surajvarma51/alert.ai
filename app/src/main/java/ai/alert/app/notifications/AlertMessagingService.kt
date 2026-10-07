@@ -43,7 +43,12 @@ class AlertMessagingService : FirebaseMessagingService() {
 
         val data = message.data
         val title = data["title"] ?: "⚡ FAST ALERT"
-        val body = data["body"] ?: "A FAST alert was reported near you."
+        val distance = data["distanceKm"]
+        val body = data["body"] ?: if (distance != null) {
+            "A FAST alert was reported " + distance + " km from you."
+        } else {
+            "A FAST alert was reported near you."
+        }
         showNotification(title, body)
     }
 
