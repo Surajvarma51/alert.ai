@@ -28,13 +28,22 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
+      - name: Restore Firebase Android configuration
+        if: ${{ secrets.FIREBASE_ANDROID_JSON != '' }}
+        shell: bash
+        env:
+          FIREBASE_ANDROID_JSON: ${{ secrets.FIREBASE_ANDROID_JSON }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_ANDROID_JSON" > app/google-services.json
+          test -s app/google-services.json
+          echo "Firebase Android configuration restored."
+
       - name: Prepare Android SDK
         shell: bash
         run: |
           set -euo pipefail
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-          echo "Android SDK packages available on runner:"
-          sdkmanager --list | grep -E "platforms;android-(3[0-9]|4[0-9])|build-tools;3[0-9]" | head -40 || true
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-37.2" "build-tools;37.0.0"
 
@@ -44,7 +53,6 @@ jobs:
           set -euo pipefail
           test -d "$ANDROID_HOME/platforms/android-37.2"
           test -d "$ANDROID_HOME/build-tools/37.0.0"
-          echo "Android SDK 37.2 is ready."
 
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
