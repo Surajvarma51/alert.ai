@@ -1,12 +1,13 @@
 package ai.alert.app
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,7 +72,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun AlertHome(
     repository: AlertRepository,
     locationProvider: LocationProvider
@@ -80,16 +82,33 @@ private fun AlertHome(
     var firebaseReady by remember { mutableStateOf<Boolean?>(null) }
     var locationReady by remember { mutableStateOf(false) }
 
+    val registerNearbyPresence: () -> Unit = {
+        if (locationProvider.hasLocationPermission()) {
+            locationProvider.getCurrentLocation(
+                onSuccess = { location ->
+                    repository.registerPresence(
+                        latitude = location.latitude,
+                        longitude = location.longitude
+                    )
+                    locationReady = true
+                    status = "Nearby alerts enabled"
+                },
+                onError = { status = it }
+            )
+        }
+    }
+
     val permissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        val granted =
+            result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
         if (granted) {
-            locationReady = true
-            status = "Location ready"
+            registerNearbyPresence()
         } else {
-            status = "Location permission is required"
+            status = "Location permission is required for nearby alerts"
         }
     }
 
@@ -99,8 +118,20 @@ private fun AlertHome(
 
     LaunchedEffect(Unit) {
         firebaseReady = repository.initialize()
+
         if (Build.VERSION.SDK_INT >= 33) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        if (locationProvider.hasLocationPermission()) {
+            registerNearbyPresence()
+        } else {
+            permissions.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
         }
     }
 
@@ -108,11 +139,11 @@ private fun AlertHome(
         val fine = androidx.core.content.ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) == PackageManager.PERMISSION_GRANTED
         val coarse = androidx.core.content.ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) == PackageManager.PERMISSION_GRANTED
 
         if (!fine && !coarse) {
             permissions.launch(
@@ -135,14 +166,10 @@ private fun AlertHome(
                         status = "Alert sent"
                         locationReady = true
                     },
-                    onError = { error ->
-                        status = error
-                    }
+                    onError = { error -> status = error }
                 )
             },
-            onError = { error ->
-                status = error
-            }
+            onError = { error -> status = error }
         )
     }
 
@@ -172,7 +199,7 @@ private fun AlertHome(
             modifier = Modifier
                 .size(230.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFB91C1C)),
+                .background(Color(0xFF7F1D1D)),
             contentAlignment = Alignment.Center
         ) {
             Button(
@@ -204,14 +231,16 @@ private fun AlertHome(
         StatusCard(
             title = "Status",
             value = status,
-            good = status == "Ready to send" || status == "Alert sent"
+            good = status == "Ready to send" ||
+                status == "Alert sent" ||
+                status == "Nearby alerts enabled"
         )
 
         Spacer(Modifier.height(12.dp))
 
         StatusCard(
             title = "Location",
-            value = if (locationReady) "Ready" else "Fetched only when needed",
+            value = if (locationReady) "Nearby alerts enabled" else "Permission required",
             good = locationReady
         )
 
@@ -221,7 +250,7 @@ private fun AlertHome(
             title = "Network",
             value = when (firebaseReady) {
                 true -> "Online backend ready"
-                false -> "Offline / Firebase not configured"
+                false -> "Firebase not configured"
                 null -> "Checking…"
             },
             good = firebaseReady == true
@@ -230,7 +259,7 @@ private fun AlertHome(
         Spacer(Modifier.height(20.dp))
 
         Text(
-            text = "FAST sends your current location to alert.ai and notifies eligible nearby users.",
+            text = "Your location is refreshed when the app opens and when you send FAST. alert.ai does not continuously track your location in V1.",
             color = Color(0xFF777C84),
             fontSize = 12.sp,
             lineHeight = 18.sp,
@@ -241,7 +270,7 @@ private fun AlertHome(
         Spacer(Modifier.height(8.dp))
 
         TextButton(onClick = {
-            status = "No continuous location tracking is used."
+            status = "Nearby alerts use your recent app-open location."
         }) {
             Text("Privacy by design", color = Color(0xFFB7BBC2))
         }
@@ -250,7 +279,7 @@ private fun AlertHome(
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun StatusCard(
     title: String,
     value: String,
