@@ -12,6 +12,7 @@ const messaging = getMessaging();
 
 const ALERT_RADIUS_KM = 5;
 const MAX_TOKEN_BATCH = 500;
+const MAX_PRESENCE_AGE_MS = 24 * 60 * 60 * 1000;
 
 export const dispatchFastAlert = onDocumentCreated(
   {
@@ -62,11 +63,14 @@ export const dispatchFastAlert = onDocumentCreated(
         const token = typeof data.fcmToken === "string" ? data.fcmToken : "";
         const userLat = Number(data.latitude);
         const userLon = Number(data.longitude);
+        const lastSeen = data.lastSeen?.toMillis?.() ?? 0;
 
         if (
           !token ||
           !Number.isFinite(userLat) ||
-          !Number.isFinite(userLon)
+          !Number.isFinite(userLon) ||
+          !lastSeen ||
+          Date.now() - lastSeen > MAX_PRESENCE_AGE_MS
         ) {
           continue;
         }
