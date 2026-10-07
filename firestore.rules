@@ -2,23 +2,15 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     match /users/{userId} {
       allow create, update: if request.auth != null
         && request.auth.uid == userId
         && request.resource.data.keys().hasOnly([
-          "fcmToken",
-          "latitude",
-          "longitude",
-          "geohash",
-          "lastSeen"
+          "fcmToken", "latitude", "longitude", "geohash", "lastSeen",
+          "displayName", "email", "updatedAt"
         ]);
-
-      allow read: if request.auth != null
-        && request.auth.uid == userId;
-
-      allow delete: if request.auth != null
-        && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     match /alerts/{alertId} {
@@ -27,9 +19,7 @@ service cloud.firestore {
         && request.resource.data.type == "FAST"
         && request.resource.data.latitude is number
         && request.resource.data.longitude is number;
-
       allow read: if request.auth != null;
-
       allow update, delete: if false;
     }
   }
