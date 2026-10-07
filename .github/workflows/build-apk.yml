@@ -29,15 +29,18 @@ jobs:
           gradle-version: '9.6.0'
 
       - name: Restore Firebase Android configuration
-        if: ${{ secrets.FIREBASE_ANDROID_JSON != '' }}
         shell: bash
         env:
           FIREBASE_ANDROID_JSON: ${{ secrets.FIREBASE_ANDROID_JSON }}
         run: |
           set -euo pipefail
-          printf '%s' "$FIREBASE_ANDROID_JSON" > app/google-services.json
-          test -s app/google-services.json
-          echo "Firebase Android configuration restored."
+          if [ -n "$FIREBASE_ANDROID_JSON" ]; then
+            printf '%s' "$FIREBASE_ANDROID_JSON" > app/google-services.json
+            test -s app/google-services.json
+            echo "Firebase Android configuration restored."
+          else
+            echo "FIREBASE_ANDROID_JSON secret not configured; building without Firebase runtime configuration."
+          fi
 
       - name: Prepare Android SDK
         shell: bash
