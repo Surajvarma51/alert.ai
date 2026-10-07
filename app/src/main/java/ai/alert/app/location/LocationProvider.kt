@@ -3,33 +3,32 @@ package ai.alert.app.location
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import androidx.core.content.ContextCompat
 
 class LocationProvider(context: Context) {
 
+    private val appContext = context.applicationContext
     private val client: FusedLocationProviderClient =
-        LocationServices.getFusedLocationProviderClient(context)
+        LocationServices.getFusedLocationProviderClient(appContext)
 
     fun getCurrentLocation(
-        onSuccess: (android.location.Location) -> Unit,
+        onSuccess: (Location) -> Unit,
         onError: (String) -> Unit
     ) {
-        val fine = contextCheck(
-            context = client,
-            permission = Manifest.permission.ACCESS_FINE_LOCATION
-        )
-        val coarse = contextCheck(
-            context = client,
-            permission = Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-
-        if (!fine && !coarse) {
+        if (!hasLocationPermission()) {
             onError("Location permission is required")
             return
         }
+
+        val fine = ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
         val request = CurrentLocationRequest.Builder()
             .setPriority(
@@ -54,18 +53,13 @@ class LocationProvider(context: Context) {
         }
     }
 
-    private fun contextCheck(
-        context: FusedLocationProviderClient,
-        permission: String
-    ): Boolean {
-        val appContext = context.javaClass
-            .getDeclaredField("mContext")
-            .let { field ->
-                field.isAccessible = true
-                field.get(context) as Context
-            }
-
-        return appContext.checkSelfPermission(permission) ==
-            PackageManager.PERMISSION_GRANTED
-    }
+    fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                appContext,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
 }
