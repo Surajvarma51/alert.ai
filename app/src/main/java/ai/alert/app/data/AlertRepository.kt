@@ -1,13 +1,13 @@
 package ai.alert.app.data
 
 import android.content.Context
+import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
-import com.google.firebase.Firebase
 
 class AlertRepository(private val context: Context) {
 
@@ -20,13 +20,35 @@ class AlertRepository(private val context: Context) {
             }
 
             ready = FirebaseApp.getApps(context).isNotEmpty()
-            if (ready) {
-                ensureAnonymousUser()
-            }
+            if (ready) ensureAnonymousUser()
             ready
         } catch (_: Exception) {
             ready = false
             false
+        }
+    }
+
+    fun registerPresence(
+        latitude: Double,
+        longitude: Double,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (!ready) {
+            onError?.invoke("Firebase is not configured yet")
+            return
+        }
+
+        val uid = Firebase.auth.currentUser?.uid
+        if (uid == null) {
+            Firebase.auth.signInAnonymously()
+                .addOnSuccessListener { result ->
+                    savePresence(result.user?.uid, latitude, longitude, onError)
+                }
+                .addOnFailureListener {
+                    onError?.invoke("Could not connect to alert.ai")
+                }
+        } else {
+            savePresence(uid, latitude, longitude, onError)
         }
     }
 
@@ -41,16 +63,9 @@ class AlertRepository(private val context: Context) {
             return
         }
 
-        val auth = try {
-            Firebase.auth
-        } catch (_: Exception) {
-            onError("Firebase Authentication is unavailable")
-            return
-        }
-
-        val user = auth.currentUser
-        if (user == null) {
-            auth.signInAnonymously()
+        val uid = Firebase.auth.currentUser?.uid
+        if (uid == null) {
+            Firebase.auth.signInAnonymously()
                 .addOnSuccessListener {
                     createAlert(latitude, longitude, onSuccess, onError)
                 }
@@ -63,12 +78,7 @@ class AlertRepository(private val context: Context) {
     }
 
     private fun ensureAnonymousUser() {
-        val auth = try {
-            Firebase.auth
-        } catch (_: Exception) {
-            return
-        }
-
+        val auth = Firebase.auth
         if (auth.currentUser != null) {
             registerMessagingToken(auth.currentUser!!.uid)
             return
@@ -97,6 +107,35 @@ class AlertRepository(private val context: Context) {
             }
     }
 
+    private fun savePresence(
+        uid: String?,
+        latitude: Double,
+        longitude: Double,
+        onError: ((String) -> Unit)?
+    ) {
+        if (uid == null) {
+            onError?.invoke("Authentication is not ready")
+            return
+        }
+
+        val geohash = GeoHash.encode(latitude, longitude)
+
+        Firebase.firestore.collection("users")
+            .document(uid)
+            .set(
+                mapOf(
+                    "latitude" to latitude,
+                    "longitude" to longitude,
+                    "geohash" to geohash,
+                    "lastSeen" to FieldValue.serverTimestamp()
+                ),
+                SetOptions.merge()
+            )
+            .addOnFailureListener {
+                onError?.invoke("Could not update nearby-alert availability")
+            }
+    }
+
     private fun createAlert(
         latitude: Double,
         longitude: Double,
@@ -120,16 +159,7 @@ class AlertRepository(private val context: Context) {
         Firebase.firestore.collection("alerts")
             .add(alert)
             .addOnSuccessListener {
-                Firebase.firestore.collection("users")
-                    .document(uid)
-                    .set(
-                        mapOf(
-                            "latitude" to latitude,
-                            "longitude" to longitude,
-                            "lastSeen" to FieldValue.serverTimestamp()
-                        ),
-                        SetOptions.merge()
-                    )
+                savePresence(uid, latitude, longitude, onError)
                 onSuccess()
             }
             .addOnFailureListener {
