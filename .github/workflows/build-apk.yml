@@ -33,8 +33,18 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          echo "Android SDK packages available on runner:"
+          sdkmanager --list | grep -E "platforms;android-(3[0-9]|4[0-9])|build-tools;3[0-9]" | head -40 || true
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Verify Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
+          echo "Android SDK 36 is ready."
 
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
