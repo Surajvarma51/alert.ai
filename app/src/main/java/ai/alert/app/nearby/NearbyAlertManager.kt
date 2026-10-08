@@ -10,7 +10,6 @@ import ai.alert.app.data.NearbyAckPayload
 import ai.alert.app.data.NearbyAlertPayload
 import kotlinx.serialization.json.Json
 import java.nio.charset.StandardCharsets
-import java.util.UUID
 
 class NearbyAlertManager(private val context: Context) {
     companion object { private const val SERVICE_ID = "ai.alert.app.nearby" }
