@@ -60,6 +60,14 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
+      - name: Verify Cloud Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd functions
+          npm install
+          npm run build
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
