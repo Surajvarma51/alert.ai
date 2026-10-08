@@ -79,6 +79,6 @@ class NearbyAlertManager(private val context: Context) {
         if (connected.isEmpty()) { onStatus?.invoke("No nearby devices connected"); return }
         client.sendPayload(connected.toList(), Payload.fromBytes(bytes))
     }
-    private fun send(endpointId: String, text: String) { client.sendPayload(endpointId, Payload.fromBytes(text.toByteArray(StandardCharsets.UTF_8))) }
+    fun sendNearbyAck(alertId: String, endpointId: String, receiverId: String) {\n        send(endpointId, Json.encodeToString(NearbyAckPayload(alertId = alertId, receiverId = receiverId)))\n    }\n\n    private fun send(endpointId: String, text: String) { client.sendPayload(endpointId, Payload.fromBytes(text.toByteArray(StandardCharsets.UTF_8))) }
     fun connectedCount(): Int = connected.size
 }
