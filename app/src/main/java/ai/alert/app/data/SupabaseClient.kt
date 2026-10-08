@@ -3,6 +3,7 @@ package ai.alert.app.data
 import ai.alert.app.BuildConfig
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.createSupabaseClient
 
@@ -16,6 +17,7 @@ object SupabaseClient {
             alwaysAutoRefresh = true
         }
         install(Postgrest)
+        install(Functions)
         install(Realtime)
     }
 }
