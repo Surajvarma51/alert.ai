@@ -41,8 +41,8 @@ class AuthRepository(private val context: Context) {
         scope.launch {
             try {
                 supabase.auth.signInWith(Email) {
-                    email = e
-                    this.password = password
+                    this.email = e
+/g                    this.password = password
                 }
                 onSuccess()
             } catch (t: Throwable) { onError(message(t)) }
@@ -59,8 +59,8 @@ class AuthRepository(private val context: Context) {
         scope.launch {
             try {
                 supabase.auth.signUpWith(Email) {
-                    email = e
-                    this.password = password
+                    this.email = e
+/g                    this.password = password
                     data = buildJsonObject { put("display_name", n) }
                 }
                 val user = supabase.auth.currentUserOrNull()
