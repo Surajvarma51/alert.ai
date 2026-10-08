@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, v1-full-alert-system ]
 
 jobs:
   build:
@@ -57,16 +57,30 @@ jobs:
           test -d "$ANDROID_HOME/platforms/android-37.2"
           test -d "$ANDROID_HOME/build-tools/37.0.0"
 
+      - name: Configure Supabase build properties
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          printf "SUPABASE_URL=%s\nSUPABASE_PUBLISHABLE_KEY=%s\n" "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > local.properties
+          test -s local.properties
+
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
-      - name: Verify Cloud Functions
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: lts
+          cache: true
+
+      - name: Type-check Supabase Edge Function
         shell: bash
         run: |
           set -euo pipefail
-          cd functions
-          npm install
-          npm run build
+          deno check supabase/functions/dispatch-alert/index.ts
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
