@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +45,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var auth: AuthRepository
     private lateinit var location: LocationProvider
     private lateinit var nearby: NearbyAlertManager
-    private val incoming = androidx.lifecycle.MutableLiveData<String?>()
+    private var incomingAlert by mutableStateOf<String?>(null)
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +55,7 @@ class MainActivity : FragmentActivity() {
         location = LocationProvider(applicationContext)
         nearby = NearbyAlertManager(applicationContext)
         handleIntent(intent)
-        nearby.onAlertReceived = { alert, endpoint -> runOnUiThread { incoming.value = alert.alertId + "|" + endpoint } }
+        nearby.onAlertReceived = { alert, endpoint -> runOnUiThread { incomingAlert = alert.alertId + "|" + endpoint } }
         setContent { AlertAiTheme { Surface(Modifier.fillMaxSize(), color = Color(0xFF08090B)) { App() } } }
     }
 
@@ -65,7 +66,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        intent?.getStringExtra("alert_id")?.let { incoming.value = it }
+        intent?.getStringExtra("alert_id")?.let { incomingAlert = it }
     }
 
     private fun requestPermissions() {
@@ -114,7 +115,7 @@ class MainActivity : FragmentActivity() {
         var signedIn by remember { mutableStateOf(auth.currentUser() != null) }
         var locked by remember { mutableStateOf(signedIn && getSharedPreferences("alertai", 0).getBoolean("biometric", false)) }
         var tab by remember { mutableIntStateOf(0) }
-        val received by incoming.observeAsState()
+        val received = incomingAlert
         LaunchedEffect(locked) { if (locked) biometric { locked = false } }
 
         if (!signedIn) {
@@ -152,9 +153,9 @@ class MainActivity : FragmentActivity() {
                 onConfirm = {
                     alerts.acknowledgeAlert(parts[0], {}, {})
                     if (parts.size == 2) nearby.sendNearbyAck(parts[0], parts[1], auth.currentUser()?.id.orEmpty())
-                    incoming.value = null
+                    incomingAlert = null
                 },
-                onDismiss = { incoming.value = null }
+                onDismiss = { incomingAlert = null }
             )
         }
     }
@@ -180,7 +181,7 @@ class MainActivity : FragmentActivity() {
             OutlinedButton(
                 enabled = !busy,
                 onClick = { busy = true; auth.signInWithGoogle(activity, { busy = false; onSignedIn() }, { busy = false; message = it }) },
-                Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp)
             ) { Text("G  CONTINUE WITH GOOGLE", fontWeight = FontWeight.Bold) }
             Spacer(Modifier.height(18.dp))
             Text(if (register) "Create account" else "Sign in", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -196,7 +197,7 @@ class MainActivity : FragmentActivity() {
                     if (register) auth.signUp(name, email, password, { busy = false; onSignedIn() }, { busy = false; message = it })
                     else auth.signIn(email, password, { busy = false; onSignedIn() }, { busy = false; message = it })
                 },
-                Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp)
             ) { Text(if (register) "CREATE ACCOUNT" else "SIGN IN") }
             TextButton(onClick = { register = !register; message = "" }) { Text(if (register) "Already have an account?" else "Create an account") }
             if (!register) TextButton(onClick = { auth.sendPasswordReset(email, { message = "Reset email sent." }, { message = it }) }) { Text("Forgot password?") }
