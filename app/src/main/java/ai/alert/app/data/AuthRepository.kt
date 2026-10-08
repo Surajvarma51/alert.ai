@@ -2,15 +2,16 @@ package ai.alert.app.data
 
 import android.app.Activity
 import android.content.Context
+import ai.alert.app.BuildConfig
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import io.github.jan.supabase.auth.providers.Email
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.Google
-import io.github.jan.supabase.auth.providers.IDToken
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -144,7 +145,6 @@ class AuthRepository(private val context: Context) {
             try {
                 supabase.auth.updateUser {
                     this.password = newPassword
-                    currentPassword = current
                 }
                 onSuccess()
             } catch (t: Throwable) { onError(message(t)) }
