@@ -70,13 +70,17 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
-      - name: Verify Cloud Functions
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: lts
+          cache: true
+
+      - name: Type-check Supabase Edge Function
         shell: bash
         run: |
           set -euo pipefail
-          cd functions
-          npm install
-          npm run build
+          deno check supabase/functions/dispatch-alert/index.ts
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
