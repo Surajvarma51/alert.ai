@@ -108,6 +108,11 @@ exception
   when duplicate_object then null;
 end $$;
 
+grant select, insert, update on public.profiles to authenticated;
+grant select, insert on public.alerts to authenticated;
+grant select, insert, update on public.alert_receipts to authenticated;
+grant all on public.profiles, public.alerts, public.alert_receipts to service_role;
+
 -- Keep profile rows synchronized for new auth users.
 create or replace function public.handle_new_user()
 returns trigger
