@@ -16,6 +16,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
@@ -31,6 +32,7 @@ class AuthRepository(private val context: Context) {
         get() = Firebase.auth
 
     private val googleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val functions = FirebaseFunctions.getInstance("asia-south1")
 
     fun initialize(): Boolean {
         return try {
@@ -116,6 +118,9 @@ class AuthRepository(private val context: Context) {
                             if (profileError != null) {
                                 onError(profileError)
                             } else {
+                                if (result.additionalUserInfo?.isNewUser == true) {
+                                    sendWelcomeEmail()
+                                }
                                 onSuccess()
                             }
                         }
@@ -171,10 +176,10 @@ class AuthRepository(private val context: Context) {
                             if (profileError != null) {
                                 onError(profileError)
                             } else {
-                                user.sendEmailVerification()
-                                    .addOnCompleteListener {
-                                        onSuccess()
-                                    }
+                                requestEmailOtp(
+                                    onSuccess = { onSuccess() },
+                                    onError = { onError(it) }
+                                )
                             }
                         }
                     }
@@ -183,6 +188,91 @@ class AuthRepository(private val context: Context) {
                     }
             }
             .addOnFailureListener { onError(authError(it)) }
+    }
+
+    fun requestEmailOtp(
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        functions.getHttpsCallable("requestEmailOtp")
+            .call()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(functionError(it)) }
+    }
+
+    fun verifyEmailOtp(
+        code: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val normalized = code.trim()
+        if (!Regex("\\d{6}").matches(normalized)) {
+            onError("Enter the 6-digit code")
+            return
+        }
+        functions.getHttpsCallable("verifyEmailOtp")
+            .call(mapOf("code" to normalized))
+            .addOnSuccessListener {
+                auth.currentUser?.reload()?.addOnCompleteListener { onSuccess() } ?: onSuccess()
+            }
+            .addOnFailureListener { onError(functionError(it)) }
+    }
+
+    fun setPassword(
+        newPassword: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val user = auth.currentUser ?: run {
+            onError("You are not signed in")
+            return
+        }
+        if (newPassword.length < 8) {
+            onError("Password must be at least 8 characters")
+            return
+        }
+        val email = user.email
+        if (email.isNullOrBlank()) {
+            onError("This account has no email address")
+            return
+        }
+
+        val credential = EmailAuthProvider.getCredential(email, newPassword)
+        if (user.providerData.any { it.providerId == EmailAuthProvider.PROVIDER_ID }) {
+            user.updatePassword(newPassword)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { onError(authError(it)) }
+        } else {
+            user.linkWithCredential(credential)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { onError(authError(it)) }
+        }
+    }
+
+    fun hasPasswordProvider(): Boolean {
+        return auth.currentUser?.providerData
+            ?.any { it.providerId == EmailAuthProvider.PROVIDER_ID } == true
+    }
+
+    private fun sendWelcomeEmail() {
+        functions.getHttpsCallable("sendWelcomeEmail")
+            .call()
+            .addOnFailureListener { /* Sign-in must not fail because an email provider is temporarily unavailable. */ }
+    }
+
+    private fun functionError(error: Throwable): String {
+        val message = error.message.orEmpty()
+        return when {
+            message.contains("resource-exhausted", ignoreCase = true) ->
+                "Too many attempts. Please wait and try again."
+            message.contains("deadline-exceeded", ignoreCase = true) ->
+                "Verification code expired. Request a new code."
+            message.contains("permission-denied", ignoreCase = true) ->
+                "Incorrect verification code."
+            message.contains("failed-precondition", ignoreCase = true) ->
+                "No active verification code. Request a new one."
+            else -> message.substringAfter(": ").ifBlank { "Request failed. Please try again." }
+        }
     }
 
     fun signIn(
