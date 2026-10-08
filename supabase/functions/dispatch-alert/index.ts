@@ -28,7 +28,7 @@ export default {
       if (!alert_id) return Response.json({ error: "alert_id is required" }, { status: 400 })
       const { data: alert, error: alertError } = await ctx.supabaseAdmin.from("alerts").select("id,sender_id,latitude,longitude").eq("id", alert_id).single()
       if (alertError || !alert) return Response.json({ error: "Alert not found" }, { status: 404 })
-      if (alert.sender_id !== ctx.userClaims?.sub) return Response.json({ error: "Not your alert" }, { status: 403 })
+      if (alert.sender_id !== ctx.userClaims?.id) return Response.json({ error: "Not your alert" }, { status: 403 })
       const { data: profiles, error: profileError } = await ctx.supabaseAdmin.from("profiles").select("id,fcm_token,latitude,longitude,display_name").not("fcm_token", "is", null).not("latitude", "is", null).not("longitude", "is", null)
       if (profileError) throw profileError
       const recipients = (profiles ?? []).filter((p: any) => p.id !== alert.sender_id).map((p: any) => ({ ...p, distanceKm: distanceKm(alert.latitude, alert.longitude, p.latitude, p.longitude) })).filter((p: any) => p.distanceKm <= 5)
