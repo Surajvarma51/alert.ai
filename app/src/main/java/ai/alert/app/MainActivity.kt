@@ -55,7 +55,7 @@ class MainActivity : FragmentActivity() {
         location = LocationProvider(applicationContext)
         nearby = NearbyAlertManager(applicationContext)
         handleIntent(intent)
-        nearby.onAlertReceived = { alert, endpoint -> runOnUiThread { incomingAlert = alert.alertId + "|" + endpoint } }
+        nearby.onAlertReceived = { alert, endpoint -> runOnUiThread { incomingAlert = "nearby|" + alert.alertId + "|" + endpoint } }
         setContent { AlertAiTheme { Surface(Modifier.fillMaxSize(), color = Color(0xFF08090B)) { App() } } }
     }
 
@@ -151,8 +151,11 @@ class MainActivity : FragmentActivity() {
             val parts = it.split("|", limit = 2)
             ReceivedAlertDialog(
                 onConfirm = {
-                    alerts.acknowledgeAlert(parts[0], {}, {})
-                    if (parts.size == 2) nearby.sendNearbyAck(parts[0], parts[1], auth.currentUser()?.id.orEmpty())
+                    if (parts.firstOrNull() == "nearby" && parts.size == 3) {
+                        nearby.sendNearbyAck(parts[1], parts[2], auth.currentUser()?.id.orEmpty())
+                    } else {
+                        alerts.acknowledgeAlert(parts[0], {}, {})
+                    }
                     incomingAlert = null
                 },
                 onDismiss = { incomingAlert = null }
@@ -232,7 +235,19 @@ class MainActivity : FragmentActivity() {
                 if (online()) {
                     status = "Sending alert…"
                     alerts.sendAlert(loc.latitude, loc.longitude,
-                        { id -> lastAlert = id; status = "Alert sent"; nearby.broadcastAlert(nearbyPayload) },
+                        { id ->
+                            lastAlert = id
+                            status = "Alert sent"
+                            nearby.broadcastAlert(
+                                NearbyAlertPayload(
+                                    alertId = id,
+                                    senderId = auth.currentUser()?.id.orEmpty(),
+                                    latitude = loc.latitude,
+                                    longitude = loc.longitude,
+                                    createdAt = System.currentTimeMillis()
+                                )
+                            )
+                        },
                         { status = it }
                     )
                 } else {
