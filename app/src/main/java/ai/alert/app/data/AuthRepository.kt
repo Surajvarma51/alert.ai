@@ -42,7 +42,7 @@ class AuthRepository(private val context: Context) {
             try {
                 supabase.auth.signInWith(Email) {
                     this.email = e
-/g                    this.password = password
+                    this.password = password
                 }
                 onSuccess()
             } catch (t: Throwable) { onError(message(t)) }
@@ -60,7 +60,7 @@ class AuthRepository(private val context: Context) {
             try {
                 supabase.auth.signUpWith(Email) {
                     this.email = e
-/g                    this.password = password
+                    this.password = password
                     data = buildJsonObject { put("display_name", n) }
                 }
                 val user = supabase.auth.currentUserOrNull()
