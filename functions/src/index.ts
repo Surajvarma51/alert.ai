@@ -195,7 +195,7 @@ export const verifyEmailOtp = onCall(
   async (request) => {
     const uid = requireAuth(request);
     const code = String(request.data?.code ?? "").trim();
-    if (!/^\\d{6}$/.test(code)) throw new HttpsError("invalid-argument", "Enter the 6-digit code");
+    if (!/^\d{6}$/.test(code)) throw new HttpsError("invalid-argument", "Enter the 6-digit code");
 
     const ref = db.collection("emailVerificationChallenges").doc(uid);
     const snap = await ref.get();
