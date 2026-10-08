@@ -335,7 +335,7 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-@Composable private fun NavItem(label: String, icon: String, selected: Boolean, onClick: () -> Unit) {
+@Composable private fun RowScope.NavItem(label: String, icon: String, selected: Boolean, onClick: () -> Unit) {
     NavigationBarItem(selected = selected, onClick = onClick, icon = { Text(icon, fontSize = 18.sp) }, label = { Text(label, fontSize = 11.sp) })
 }
 
