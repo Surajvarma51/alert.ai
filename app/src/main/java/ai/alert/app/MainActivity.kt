@@ -112,9 +112,11 @@ private fun AlertApp(
 private fun AuthScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
     val activity = LocalContext.current as? Activity
     var register by remember { mutableStateOf(false) }
+    var verificationMode by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var otp by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var resetMode by remember { mutableStateOf(false) }
@@ -126,23 +128,34 @@ private fun AuthScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
     ) {
         Text("alert.ai", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
-        Text(
-            if (resetMode) "Reset your password" else if (register) "Create your account" else "Sign in to alert.ai",
-            color = Color(0xFF9EA3AA)
-        )
-        Spacer(Modifier.height(28.dp))
 
-        if (!resetMode) {
-            OutlinedButton(
-                enabled = !busy && activity != null,
+        if (verificationMode) {
+            Text("Verify your email", color = Color(0xFF9EA3AA))
+            Spacer(Modifier.height(8.dp))
+            Text(email, color = Color.White, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "We sent a 6-digit verification code to your email.",
+                color = Color(0xFF9EA3AA),
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(14.dp))
+            Field("6-digit code", otp) { otp = it.take(6).filter(Char::isDigit) }
+            Spacer(Modifier.height(10.dp))
+            if (message.isNotBlank()) {
+                Text(message, color = Color(0xFFFFB4AE), textAlign = TextAlign.Center)
+                Spacer(Modifier.height(10.dp))
+            }
+            Button(
+                enabled = !busy && otp.length == 6,
                 onClick = {
-                    val host = activity ?: return@OutlinedButton
                     busy = true
                     message = ""
-                    auth.signInWithGoogle(
-                        activity = host,
+                    auth.verifyEmailOtp(
+                        otp,
                         onSuccess = {
                             busy = false
+                            message = "Email verified."
                             onSignedIn()
                         },
                         onError = {
@@ -154,62 +167,142 @@ private fun AuthScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text("G  CONTINUE WITH GOOGLE", fontWeight = FontWeight.Bold)
+                Text("VERIFY EMAIL")
+            }
+            TextButton(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    message = ""
+                    auth.requestEmailOtp(
+                        onSuccess = {
+                            busy = false
+                            message = "A new verification code was sent."
+                        },
+                        onError = {
+                            busy = false
+                            message = it
+                        }
+                    )
+                }
+            ) {
+                Text("RESEND CODE")
+            }
+        } else {
+            Text(
+                if (resetMode) "Reset your password"
+                else if (register) "Create your account"
+                else "Sign in to alert.ai",
+                color = Color(0xFF9EA3AA)
+            )
+            Spacer(Modifier.height(28.dp))
+
+            if (!resetMode) {
+                OutlinedButton(
+                    enabled = !busy && activity != null,
+                    onClick = {
+                        val host = activity ?: return@OutlinedButton
+                        busy = true
+                        message = ""
+                        auth.signInWithGoogle(
+                            activity = host,
+                            onSuccess = {
+                                busy = false
+                                onSignedIn()
+                            },
+                            onError = {
+                                busy = false
+                                message = it
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("G  CONTINUE WITH GOOGLE", fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(Modifier.height(18.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(Modifier.weight(1f), color = Color(0xFF30343A))
+                    Text("  OR  ", color = Color(0xFF777C84), fontSize = 12.sp)
+                    HorizontalDivider(Modifier.weight(1f), color = Color(0xFF30343A))
+                }
+                Spacer(Modifier.height(14.dp))
+            }
+
+            if (register && !resetMode) Field("Name", name) { name = it }
+            Field("Email", email) { email = it }
+            Field("Password", password, true) { password = it }
+
+            if (message.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Text(message, color = Color(0xFFFFB4AE), textAlign = TextAlign.Center)
             }
 
             Spacer(Modifier.height(18.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Button(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    message = ""
+                    if (resetMode) {
+                        auth.sendPasswordReset(
+                            email,
+                            { busy = false; message = "Password reset email sent." },
+                            { busy = false; message = it }
+                        )
+                    } else if (register) {
+                        auth.signUp(
+                            name,
+                            email,
+                            password,
+                            {
+                                busy = false
+                                verificationMode = true
+                                message = ""
+                            },
+                            {
+                                busy = false
+                                message = it
+                            }
+                        )
+                    } else {
+                        auth.signIn(
+                            email,
+                            password,
+                            { busy = false; onSignedIn() },
+                            { busy = false; message = it }
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp)
             ) {
-                HorizontalDivider(Modifier.weight(1f), color = Color(0xFF30343A))
-                Text("  OR  ", color = Color(0xFF777C84), fontSize = 12.sp)
-                HorizontalDivider(Modifier.weight(1f), color = Color(0xFF30343A))
+                Text(if (resetMode) "SEND RESET EMAIL" else if (register) "CREATE ACCOUNT" else "SIGN IN")
             }
-            Spacer(Modifier.height(14.dp))
-        }
 
-        if (register && !resetMode) Field("Name", name) { name = it }
-        Field("Email", email) { email = it }
-        Field("Password", password, true) { password = it }
-
-        if (message.isNotBlank()) {
             Spacer(Modifier.height(10.dp))
-            Text(message, color = Color(0xFFFFB4AE), textAlign = TextAlign.Center)
-        }
-
-        Spacer(Modifier.height(18.dp))
-        Button(
-            enabled = !busy,
-            onClick = {
-                busy = true; message = ""
-                if (resetMode) {
-                    auth.sendPasswordReset(email, { busy = false; message = "Password reset email sent." }, { busy = false; message = it })
-                } else if (register) {
-                    auth.signUp(name, email, password, { busy = false; message = "Account created. Check your email to verify it."; onSignedIn() }, { busy = false; message = it })
-                } else {
-                    auth.signIn(email, password, { busy = false; onSignedIn() }, { busy = false; message = it })
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text(if (resetMode) "SEND RESET EMAIL" else if (register) "CREATE ACCOUNT" else "SIGN IN")
-        }
-
-        Spacer(Modifier.height(10.dp))
-        TextButton(onClick = {
-            message = ""; resetMode = false; register = !register
-        }) {
-            Text(if (register) "Already have an account? Sign in" else "Create a new account")
-        }
-        if (!register && !resetMode) {
-            TextButton(onClick = { resetMode = true; message = "" }) {
-                Text("Forgot password?")
+            TextButton(onClick = {
+                message = ""
+                resetMode = false
+                register = !register
+            }) {
+                Text(if (register) "Already have an account? Sign in" else "Create a new account")
             }
-        }
-        if (resetMode) {
-            TextButton(onClick = { resetMode = false; message = "" }) { Text("Back to sign in") }
+            if (!register && !resetMode) {
+                TextButton(onClick = { resetMode = true; message = "" }) {
+                    Text("Forgot password?")
+                }
+            }
+            if (resetMode) {
+                TextButton(onClick = { resetMode = false; message = "" }) {
+                    Text("Back to sign in")
+                }
+            }
         }
     }
 }
@@ -410,22 +503,63 @@ private fun EditProfileScreen(auth: AuthRepository, onBack: () -> Unit) {
 
 @Composable
 private fun SecurityScreen(auth: AuthRepository, onBack: () -> Unit) {
-    var current by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
+    var current by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
+    val hasPassword = auth.hasPasswordProvider()
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
         TextButton(onClick = onBack) { Text("BACK") }
         Text("SECURITY", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(20.dp))
-        Field("Current password", current, true) { current = it }
-        Field("New password", newPassword, true) { newPassword = it }
-        Spacer(Modifier.height(10.dp))
-        Button(onClick = { auth.changePassword(current, newPassword, { message = "Password changed." }, { message = it }) }, Modifier.fillMaxWidth()) {
-            Text("CHANGE PASSWORD")
+
+        if (hasPassword) {
+            Field("Current password", current, true) { current = it }
+            Field("New password", newPassword, true) { newPassword = it }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = {
+                    auth.changePassword(
+                        current,
+                        newPassword,
+                        { message = "Password changed." },
+                        { message = it }
+                    )
+                },
+                Modifier.fillMaxWidth()
+            ) {
+                Text("CHANGE PASSWORD")
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                "Password changes require recent authentication.",
+                color = Color(0xFF777C84),
+                fontSize = 12.sp
+            )
+        } else {
+            Text(
+                "Your account currently uses Google sign-in. Set an alert.ai password to also sign in with your email.",
+                color = Color(0xFF9EA3AA),
+                lineHeight = 20.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            Field("New password", newPassword, true) { newPassword = it }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = {
+                    auth.setPassword(
+                        newPassword,
+                        { message = "Password set. You can now sign in with email and password." },
+                        { message = it }
+                    )
+                },
+                Modifier.fillMaxWidth()
+            ) {
+                Text("SET PASSWORD")
+            }
         }
+
         Spacer(Modifier.height(14.dp))
-        Text("Password changes require recent authentication.", color = Color(0xFF777C84), fontSize = 12.sp)
         Text(message, color = Color(0xFFB9BDC5))
     }
 }
