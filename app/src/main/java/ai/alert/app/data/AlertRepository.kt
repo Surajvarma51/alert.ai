@@ -102,7 +102,7 @@ class AlertRepository(private val context: Context) {
         }
     }
 
-    fun acknowledgeAlert(alertId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun markDelivered(alertId: String) {\n        val user = supabase.auth.currentUserOrNull() ?: return\n        scope.launch {\n            try {\n                supabase.from("alert_receipts").upsert(ReceiptRow(alert_id = alertId, receiver_id = user.id, status = "DELIVERED")) {\n                    onConflict = "alert_id,receiver_id"\n                }\n            } catch (_: Throwable) {}\n        }\n    }\n\n    fun acknowledgeAlert(alertId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         val user = supabase.auth.currentUserOrNull()
         if (user == null) { onError("Please sign in first"); return }
         scope.launch {
