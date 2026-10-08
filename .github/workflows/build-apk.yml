@@ -57,6 +57,16 @@ jobs:
           test -d "$ANDROID_HOME/platforms/android-37.2"
           test -d "$ANDROID_HOME/build-tools/37.0.0"
 
+      - name: Configure Supabase build properties
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          printf "SUPABASE_URL=%s\nSUPABASE_PUBLISHABLE_KEY=%s\n" "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > local.properties
+          test -s local.properties
+
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
