@@ -4,8 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
-import android.media.AudioAttributes
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -42,11 +40,6 @@ class AlertMessagingService : FirebaseMessagingService() {
     private fun showNotification(alertId: String, title: String, body: String) {
         val channelId = "send_alerts"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val sound = Uri.parse("android.resource://" + packageName + "/" + R.raw.alert_sound)
-            val attributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
             val channel = NotificationChannel(channelId, "SEND ALERT", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Nearby hazard alerts from alert.ai"
                 enableVibration(true)
