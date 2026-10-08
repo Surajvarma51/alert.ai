@@ -2,6 +2,8 @@ package ai.alert.app.data
 
 import android.content.Context
 import com.google.firebase.messaging.FirebaseMessaging
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
