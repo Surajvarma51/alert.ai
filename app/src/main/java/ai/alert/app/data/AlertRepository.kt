@@ -123,7 +123,7 @@ class AlertRepository(private val context: Context) {
         }
     }
 
-    private fun registerFcmToken() {
+    fun registerFcmToken(tokenOverride: String? = null) {
         val user = supabase.auth.currentUserOrNull() ?: return
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
